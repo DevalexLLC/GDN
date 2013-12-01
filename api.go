@@ -8,67 +8,63 @@ import (
 	"github.com/codegangsta/martini"
 )
 
-// GetAlbums returns the list of albums (possibly filtered).
-func GetAlbums(r *http.Request, enc Encoder, db DB) string {
+// GetFiles returns the list of files (possibly filtered).
+func GetFiles(r *http.Request, enc Encoder, db DB) string {
 	// Get the query string arguments, if any
 	qs := r.URL.Query()
-	band, title, yrs := qs.Get("band"), qs.Get("title"), qs.Get("year")
-	yri, err := strconv.Atoi(yrs)
-	if err != nil {
-		// If year is not a valid integer, ignore it
-		yri = 0
-	}
-	if band != "" || title != "" || yri != 0 {
+	filename, hash, acl := qs.Get("filename"), qs.Get("hash"), qs.Get("acl")
+
+	if filename != "" || hash != "" || acl != "" {
 		// At least one filter, use Find()
-		return Must(enc.Encode(toIface(db.Find(band, title, yri))...))
+		return Must(enc.Encode(toIface(db.Find(filename, hash, acl))...))
 	}
-	// Otherwise, return all albums
+	// Otherwise, return all files
 	return Must(enc.Encode(toIface(db.GetAll())...))
 }
 
-// GetAlbum returns the requested album.
-func GetAlbum(enc Encoder, db DB, parms martini.Params) (int, string) {
+// GetFile returns the requested file.
+func GetFile(enc Encoder, db DB, parms martini.Params) (int, string) {
 	id, err := strconv.Atoi(parms["id"])
 	al := db.Get(id)
 	if err != nil || al == nil {
 		// Invalid id, or does not exist
 		return http.StatusNotFound, Must(enc.Encode(
-			NewError(ErrCodeNotExist, fmt.Sprintf("the album with id %s does not exist", parms["id"]))))
+			NewError(ErrCodeNotExist, fmt.Sprintf("the file with id %s does not exist", parms["id"]))))
 	}
 	return http.StatusOK, Must(enc.Encode(al))
 }
 
-// AddAlbum creates the posted album.
-func AddAlbum(w http.ResponseWriter, r *http.Request, enc Encoder, db DB) (int, string) {
-	al := getPostAlbum(r)
+// AddFile creates the posted file.
+func AddFile(w http.ResponseWriter, r *http.Request, enc Encoder, db DB) (int, string) {
+	al := getPostFile(r)
 	id, err := db.Add(al)
 	switch err {
 	case ErrAlreadyExists:
 		// Duplicate
 		return http.StatusConflict, Must(enc.Encode(
-			NewError(ErrCodeAlreadyExists, fmt.Sprintf("the album '%s' from '%s' already exists", al.Title, al.Band))))
+			NewError(ErrCodeAlreadyExists, fmt.Sprintf("the file '%s' from '%s' already exists", al.Hash, al.FileName))))
 	case nil:
 		// TODO : Location is expected to be an absolute URI, as per the RFC2616
-		w.Header().Set("Location", fmt.Sprintf("/albums/%d", id))
+		w.Header().Set("Location", fmt.Sprintf("/files/%d", id))
 		return http.StatusCreated, Must(enc.Encode(al))
 	default:
 		panic(err)
 	}
 }
 
-// UpdateAlbum changes the specified album.
-func UpdateAlbum(r *http.Request, enc Encoder, db DB, parms martini.Params) (int, string) {
-	al, err := getPutAlbum(r, parms)
+// UpdateFile changes the specified file.
+func UpdateFile(r *http.Request, enc Encoder, db DB, parms martini.Params) (int, string) {
+	al, err := getPutFile(r, parms)
 	if err != nil {
 		// Invalid id, 404
 		return http.StatusNotFound, Must(enc.Encode(
-			NewError(ErrCodeNotExist, fmt.Sprintf("the album with id %s does not exist", parms["id"]))))
+			NewError(ErrCodeNotExist, fmt.Sprintf("the file with id %s does not exist", parms["id"]))))
 	}
 	err = db.Update(al)
 	switch err {
 	case ErrAlreadyExists:
 		return http.StatusConflict, Must(enc.Encode(
-			NewError(ErrCodeAlreadyExists, fmt.Sprintf("the album '%s' from '%s' already exists", al.Title, al.Band))))
+			NewError(ErrCodeAlreadyExists, fmt.Sprintf("the file '%s' from '%s' already exists", al.Hash, al.FileName))))
 	case nil:
 		return http.StatusOK, Must(enc.Encode(al))
 	default:
@@ -76,23 +72,20 @@ func UpdateAlbum(r *http.Request, enc Encoder, db DB, parms martini.Params) (int
 	}
 }
 
-// Parse the request body, load into an Album structure.
-func getPostAlbum(r *http.Request) *Album {
-	band, title, yrs := r.FormValue("band"), r.FormValue("title"), r.FormValue("year")
-	yri, err := strconv.Atoi(yrs)
-	if err != nil {
-		yri = 0 // Year is optional, set to 0 if invalid/unspecified
-	}
-	return &Album{
-		Band:  band,
-		Title: title,
-		Year:  yri,
+// Parse the request body, load into an File structure.
+func getPostFile(r *http.Request) *File {
+	filename, hash, acl := r.FormValue("filename"), r.FormValue("hash"), r.FormValue("acl")
+
+	return &File{
+		FileName: filename,
+		Hash:     hash,
+		ACL:      acl,
 	}
 }
 
-// Like getPostAlbum, but additionnally, parse and store the `id` query string.
-func getPutAlbum(r *http.Request, parms martini.Params) (*Album, error) {
-	al := getPostAlbum(r)
+// Like getPostFile, but additionnally, parse and store the `id` query string.
+func getPutFile(r *http.Request, parms martini.Params) (*File, error) {
+	al := getPostFile(r)
 	id, err := strconv.Atoi(parms["id"])
 	if err != nil {
 		return nil, err
@@ -106,18 +99,18 @@ func getPutAlbum(r *http.Request, parms martini.Params) (*Album, error) {
 // always return 204 - No content, idempotence relates to the state of the server
 // after the request, not the returned status code. So I return a 404 - Not found
 // if the id does not exist.
-func DeleteAlbum(enc Encoder, db DB, parms martini.Params) (int, string) {
+func DeleteFile(enc Encoder, db DB, parms martini.Params) (int, string) {
 	id, err := strconv.Atoi(parms["id"])
 	al := db.Get(id)
 	if err != nil || al == nil {
 		return http.StatusNotFound, Must(enc.Encode(
-			NewError(ErrCodeNotExist, fmt.Sprintf("the album with id %s does not exist", parms["id"]))))
+			NewError(ErrCodeNotExist, fmt.Sprintf("the file with id %s does not exist", parms["id"]))))
 	}
 	db.Delete(id)
 	return http.StatusNoContent, ""
 }
 
-func toIface(v []*Album) []interface{} {
+func toIface(v []*File) []interface{} {
 	if len(v) == 0 {
 		return nil
 	}

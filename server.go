@@ -19,7 +19,6 @@ var m *martini.Martini
 
 func init() {
 	m = martini.New()
-
 	// Setup middleware
 	m.Use(martini.Recovery())
 	m.Use(martini.Logger())
@@ -28,11 +27,11 @@ func init() {
 
 	// Setup routes
 	r := martini.NewRouter()
-	r.Get(`/albums`, GetAlbums)
-	r.Get(`/albums/:id`, GetAlbum)
-	r.Post(`/albums`, AddAlbum)
-	r.Put(`/albums/:id`, UpdateAlbum)
-	r.Delete(`/albums/:id`, DeleteAlbum)
+	r.Get(`/files`, GetFiles)
+	r.Get(`/files/:id`, GetFile)
+	r.Post(`/files`, AddFile)
+	r.Put(`/files/:id`, UpdateFile)
+	r.Delete(`/files/:id`, DeleteFile)
 
 	// Inject database
 	m.MapTo(db, (*DB)(nil))
@@ -104,8 +103,6 @@ func main() {
 	// can be created using this command in this repository's root directory:
 	//
 	// go run /path/to/goroot/src/pkg/crypto/tls/generate_cert.go --host="localhost"
-	// On Mac:
-	// go run /usr/local/go/src/pkg/crypto/tls/generate_cert.go --host="localhost"
 	//
 	if err := http.ListenAndServeTLS(":8001", "cert.pem", "key.pem", m); err != nil {
 		log.Fatal(err)
