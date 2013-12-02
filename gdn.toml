@@ -1,9 +1,9 @@
 title = "GDN Configuration File"
 
-[[GDNServer]]
-	name="localhost"
-	region="us-east"
+LagThreshold = 10
 
-[[GDNServer]]
-	name="server2"
-	region="us-west"
+[GDNServer]
+	Servers = [
+		"server1",
+		"server2"
+	]

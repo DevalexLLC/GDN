@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
 
+	"github.com/shaunhess/gdn/config"
 	"github.com/codegangsta/martini"
 	"github.com/codegangsta/martini-contrib/auth"
 )
@@ -76,6 +78,9 @@ func MapEncoder(c martini.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// read our config parms
+	fmt.Printf("%s", config.Params.GDNServer.Servers)
+
 	go func() {
 		// Listen on http: to raise an error and indicate that https: is required.
 		//
