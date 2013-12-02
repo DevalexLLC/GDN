@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	"strconv"
-
 	"github.com/codegangsta/martini"
+	"net/http"
+	"path/filepath"
+	"strconv"
 )
 
 // GetFiles returns the list of files (possibly filtered).
@@ -37,6 +37,13 @@ func GetFile(enc Encoder, db DB, parms martini.Params) (int, string) {
 // AddFile creates the posted file.
 func AddFile(w http.ResponseWriter, r *http.Request, enc Encoder, db DB) (int, string) {
 	al := getPostFile(r)
+	// Copy the file to a storage location
+	
+	// Do not store the entire path, just the filename
+	_, file := filepath.Split(al.FileName)
+	al.FileName = file
+	
+	// Add the file to the database
 	id, err := db.Add(al)
 	switch err {
 	case ErrAlreadyExists:
