@@ -1,0 +1,9 @@
+title = "GDN Configuration File"
+
+[[GDNServer]]
+	name="localhost"
+	region="us-east"
+
+[[GDNServer]]
+	name="server2"
+	region="us-west"
