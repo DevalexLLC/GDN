@@ -1,3 +1,5 @@
+*Do Not Use In Production. Playing with Go and isn't intended for real world use.*
+
 GDN
 ===
 
